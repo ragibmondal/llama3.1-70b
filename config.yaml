@@ -1,0 +1,18 @@
+# Model configurations
+models:
+  llama3-70b-8192:
+    name: Llama3-70b-chat
+    provider: groq
+    tokens: 8192
+    developer: Meta
+    description: Llama3-70b-chat is a large language model developed by Meta, known for its strong performance on various natural language processing tasks.
+
+# Default maximum tokens for response generation
+default_max_tokens: 8192
+
+# Prompt templates for different use cases
+prompt_templates:
+  creative_writing: "Write a short story about a [theme] in the style of [author]."
+  code_generation: "Write a Python function that [task]."
+  data_analysis: "Analyze the following dataset and provide insights: [dataset]"
+  # Add more prompt templates as needed
