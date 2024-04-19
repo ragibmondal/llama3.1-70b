@@ -8,6 +8,12 @@ import yaml
 # Load environment variables from .env file
 load_dotenv()
 
+def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
+    """Yield chat response content from the Groq API response."""
+    for chunk in chat_completion:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
 st.set_page_config(page_icon="💬", layout="wide", page_title="Llama3 Chat App")
 
 # Load configuration from config.yaml
