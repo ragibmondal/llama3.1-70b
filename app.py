@@ -36,94 +36,103 @@ if "messages" not in st.session_state:
 model_option = "llama3-70b-8192"
 model_info = config["models"][model_option]
 
-# Display model information
-st.sidebar.header("Model Information")
-st.sidebar.markdown(f"**Name:** {model_info['name']}")
-st.sidebar.markdown(f"**Developer:** {model_info['developer']}")
-st.sidebar.markdown(f"**Description:** {model_info['description']}")
+# Add a sidebar section for selecting options
+st.sidebar.header("Select Options")
 
-max_tokens_range = model_info["tokens"]
+# Add a checkbox for selecting model
+show_model_info = st.sidebar.checkbox("Show Model Information", value=True)
 
-# Adjust max_tokens slider
-max_tokens = st.sidebar.slider(
-    "Max Tokens:",
-    min_value=512,
-    max_value=max_tokens_range,
-    value=min(config["default_max_tokens"], max_tokens_range),
-    step=512,
-    help=f"Adjust the maximum number of tokens (words) for the model's response. Max for selected model: {max_tokens_range}"
-)
+# Add a checkbox for selecting chat interface
+show_chat_interface = st.sidebar.checkbox("Show Chat Interface", value=False)
 
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    avatar = '🤖' if message["role"] == "assistant" else '👨‍💻'
-    with st.chat_message(message["role"], avatar=avatar):
-        st.markdown(message["content"])
+# Add a checkbox for selecting prompt templates
+show_prompt_templates = st.sidebar.checkbox("Show Prompt Templates", value=False)
 
-if prompt := st.chat_input("Enter your prompt here..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+# Display model information section
+if show_model_info:
+    st.sidebar.header("Model Information")
+    st.sidebar.markdown(f"**Name:** {model_info['name']}")
+    st.sidebar.markdown(f"**Developer:** {model_info['developer']}")
+    st.sidebar.markdown(f"**Description:** {model_info['description']}")
 
-    with st.chat_message("user", avatar='👨‍💻'):
-        st.markdown(prompt)
+    max_tokens_range = model_info["tokens"]
 
-    # Fetch response from Groq API
-    try:
-        chat_completion = client.chat.completions.create(
-            model=model_option,
-            messages=[
-                {
-                    "role": m["role"],
-                    "content": m["content"]
-                }
-                for m in st.session_state.messages
-            ],
-            max_tokens=max_tokens,
-            stream=True
-        )
-
-        # Use the generator function with st.write_stream
-        with st.chat_message("assistant", avatar="🤖"):
-            chat_responses_generator = generate_chat_responses(chat_completion)
-            full_response = st.write_stream(chat_responses_generator)
-    except Exception as e:
-        st.error(f"Error: {e}", icon="🚨")
-
-    # Append the full response to session_state.messages
-    if isinstance(full_response, str):
-        st.session_state.messages.append(
-            {"role": "assistant", "content": full_response})
-    else:
-        # Handle the case where full_response is not a string
-        combined_response = "\n".join(str(item) for item in full_response)
-        st.session_state.messages.append(
-            {"role": "assistant", "content": combined_response})
-
-# Add a clear chat button
-if st.sidebar.button("Clear Chat"):
-    st.session_state.messages = []
-
-# Add a download chat history button
-if st.sidebar.button("Download Chat History"):
-    chat_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages])
-    st.download_button(
-        label="Download Chat History",
-        data=chat_history,
-        file_name="chat_history.txt",
-        mime="text/plain",
+    # Adjust max_tokens slider
+    max_tokens = st.sidebar.slider(
+        "Max Tokens:",
+        min_value=512,
+        max_value=max_tokens_range,
+        value=min(config["default_max_tokens"], max_tokens_range),
+        step=512,
+        help=f"Adjust the maximum number of tokens (words) for the model's response. Max for selected model: {max_tokens_range}"
     )
 
-# Add a prompt templates section
-st.sidebar.header("Prompt Templates")
-template_options = config["prompt_templates"].keys()
-selected_template = st.sidebar.selectbox("Choose a prompt template", options=template_options)
+# Display chat interface section
+if show_chat_interface:
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        avatar = '🤖' if message["role"] == "assistant" else '👨‍💻'
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
 
-if st.sidebar.button("Load Template"):
-    prompt_template = config["prompt_templates"][selected_template]
-    st.chat_input("", value=prompt_template, key="prompt_input")
+    if prompt := st.chat_input("Enter your prompt here..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
+        with st.chat_message("user", avatar='👨‍💻'):
+            st.markdown(prompt)
 
-def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
-    """Yield chat response content from the Groq API response."""
-    for chunk in chat_completion:
-        if chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
+        # Fetch response from Groq API
+        try:
+            chat_completion = client.chat.completions.create(
+                model=model_option,
+                messages=[
+                    {
+                        "role": m["role"],
+                        "content": m["content"]
+                    }
+                    for m in st.session_state.messages
+                ],
+                max_tokens=max_tokens,
+                stream=True
+            )
+
+            # Use the generator function with st.write_stream
+            with st.chat_message("assistant", avatar="🤖"):
+                chat_responses_generator = generate_chat_responses(chat_completion)
+                full_response = st.write_stream(chat_responses_generator)
+        except Exception as e:
+            st.error(f"Error: {e}", icon="🚨")
+
+        # Append the full response to session_state.messages
+        if isinstance(full_response, str):
+            st.session_state.messages.append(
+                {"role": "assistant", "content": full_response})
+        else:
+            # Handle the case where full_response is not a string
+            combined_response = "\n".join(str(item) for item in full_response)
+            st.session_state.messages.append(
+                {"role": "assistant", "content": combined_response})
+
+    # Add a clear chat button
+    if st.sidebar.button("Clear Chat"):
+        st.session_state.messages = []
+
+    # Add a download chat history button
+    if st.sidebar.button("Download Chat History"):
+        chat_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages])
+        st.download_button(
+            label="Download Chat History",
+            data=chat_history,
+            file_name="chat_history.txt",
+            mime="text/plain",
+        )
+
+# Display prompt templates section
+if show_prompt_templates:
+    st.sidebar.header("Prompt Templates")
+    template_options = config["prompt_templates"].keys()
+    selected_template = st.sidebar.selectbox("Choose a prompt template", options=template_options)
+
+    if st.sidebar.button("Load Template"):
+        prompt_template = config["prompt_templates"][selected_template]
+        st.chat_input("", value=prompt_template, key="prompt_input")
