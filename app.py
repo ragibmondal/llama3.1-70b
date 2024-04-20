@@ -4,8 +4,6 @@ from typing import Generator
 from groq import Groq
 from dotenv import load_dotenv
 import yaml
-import time
-import pandas as pd
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,8 +33,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_options = list(config["models"].keys())
-model_option = st.sidebar.selectbox("Select Model", model_options)
+model_option = "llama3-70b-8192"
 model_info = config["models"][model_option]
 
 # Display model information
@@ -71,7 +68,6 @@ if prompt := st.chat_input("Enter your prompt here..."):
 
     # Fetch response from Groq API
     try:
-        start_time = time.time()
         chat_completion = client.chat.completions.create(
             model=model_option,
             messages=[
@@ -89,10 +85,6 @@ if prompt := st.chat_input("Enter your prompt here..."):
         with st.chat_message("assistant", avatar="🤖"):
             chat_responses_generator = generate_chat_responses(chat_completion)
             full_response = st.write_stream(chat_responses_generator)
-
-        end_time = time.time()
-        response_time = end_time - start_time
-        st.info(f"Response generated in {response_time:.2f} seconds.")
     except Exception as e:
         st.error(f"Error: {e}", icon="🚨")
 
@@ -128,31 +120,3 @@ selected_template = st.sidebar.selectbox("Choose a prompt template", options=tem
 if st.sidebar.button("Load Template"):
     prompt_template = config["prompt_templates"][selected_template]
     st.chat_input("", value=prompt_template, key="prompt_input")
-
-# Add a feedback section
-st.sidebar.header("Feedback")
-if st.sidebar.button("Submit Feedback"):
-    feedback = st.text_area("Enter your feedback here")
-    if feedback:
-        feedback_data = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "feedback": feedback
-        }
-        feedback_df = pd.DataFrame([feedback_data])
-        feedback_df.to_csv("feedback.csv", mode="a", header=False, index=False)
-        st.success("Thank you for your feedback!")
-
-# Add a rate limiting feature
-if "request_count" not in st.session_state:
-    st.session_state.request_count = 0
-
-if st.session_state.request_count >= config["rate_limit"]:
-    st.warning(f"You have reached the maximum number of requests ({config['rate_limit']}) for the current session. Please wait or restart the app.")
-else:
-    st.session_state.request_count += 1
-
-def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
-    """Yield chat response content from the Groq API response."""
-    for chunk in chat_completion:
-        if chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
