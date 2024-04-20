@@ -4,6 +4,8 @@ from typing import Generator
 from groq import Groq
 from dotenv import load_dotenv
 import yaml
+import time
+import pandas as pd
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,106 +35,124 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_option = "llama3-70b-8192"
+model_options = list(config["models"].keys())
+model_option = st.sidebar.selectbox("Select Model", model_options)
 model_info = config["models"][model_option]
 
-# Add a sidebar section for selecting options
-st.sidebar.header("Select Options")
+# Display model information
+st.sidebar.header("Model Information")
+st.sidebar.markdown(f"**Name:** {model_info['name']}")
+st.sidebar.markdown(f"**Developer:** {model_info['developer']}")
+st.sidebar.markdown(f"**Description:** {model_info['description']}")
 
-# Add a checkbox for selecting model
-show_model_info = st.sidebar.checkbox("Show Model Information", value=True)
+max_tokens_range = model_info["tokens"]
 
-# Add a checkbox for selecting chat interface
-show_chat_interface = st.sidebar.checkbox("Show Chat Interface", value=False)
+# Adjust max_tokens slider
+max_tokens = st.sidebar.slider(
+    "Max Tokens:",
+    min_value=512,
+    max_value=max_tokens_range,
+    value=min(config["default_max_tokens"], max_tokens_range),
+    step=512,
+    help=f"Adjust the maximum number of tokens (words) for the model's response. Max for selected model: {max_tokens_range}"
+)
 
-# Add a checkbox for selecting prompt templates
-show_prompt_templates = st.sidebar.checkbox("Show Prompt Templates", value=False)
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    avatar = '🤖' if message["role"] == "assistant" else '👨‍💻'
+    with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(message["content"])
 
-# Display model information section
-if show_model_info:
-    st.sidebar.header("Model Information")
-    st.sidebar.markdown(f"**Name:** {model_info['name']}")
-    st.sidebar.markdown(f"**Developer:** {model_info['developer']}")
-    st.sidebar.markdown(f"**Description:** {model_info['description']}")
+if prompt := st.chat_input("Enter your prompt here..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
-    max_tokens_range = model_info["tokens"]
+    with st.chat_message("user", avatar='👨‍💻'):
+        st.markdown(prompt)
 
-    # Adjust max_tokens slider
-    max_tokens = st.sidebar.slider(
-        "Max Tokens:",
-        min_value=512,
-        max_value=max_tokens_range,
-        value=min(config["default_max_tokens"], max_tokens_range),
-        step=512,
-        help=f"Adjust the maximum number of tokens (words) for the model's response. Max for selected model: {max_tokens_range}"
-    )
-
-# Display chat interface section
-if show_chat_interface:
-    # Display chat messages from history on app rerun
-    for message in st.session_state.messages:
-        avatar = '🤖' if message["role"] == "assistant" else '👨‍💻'
-        with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
-
-    if prompt := st.chat_input("Enter your prompt here..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-        with st.chat_message("user", avatar='👨‍💻'):
-            st.markdown(prompt)
-
-        # Fetch response from Groq API
-        try:
-            chat_completion = client.chat.completions.create(
-                model=model_option,
-                messages=[
-                    {
-                        "role": m["role"],
-                        "content": m["content"]
-                    }
-                    for m in st.session_state.messages
-                ],
-                max_tokens=max_tokens,
-                stream=True
-            )
-
-            # Use the generator function with st.write_stream
-            with st.chat_message("assistant", avatar="🤖"):
-                chat_responses_generator = generate_chat_responses(chat_completion)
-                full_response = st.write_stream(chat_responses_generator)
-        except Exception as e:
-            st.error(f"Error: {e}", icon="🚨")
-
-        # Append the full response to session_state.messages
-        if isinstance(full_response, str):
-            st.session_state.messages.append(
-                {"role": "assistant", "content": full_response})
-        else:
-            # Handle the case where full_response is not a string
-            combined_response = "\n".join(str(item) for item in full_response)
-            st.session_state.messages.append(
-                {"role": "assistant", "content": combined_response})
-
-    # Add a clear chat button
-    if st.sidebar.button("Clear Chat"):
-        st.session_state.messages = []
-
-    # Add a download chat history button
-    if st.sidebar.button("Download Chat History"):
-        chat_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages])
-        st.download_button(
-            label="Download Chat History",
-            data=chat_history,
-            file_name="chat_history.txt",
-            mime="text/plain",
+    # Fetch response from Groq API
+    try:
+        start_time = time.time()
+        chat_completion = client.chat.completions.create(
+            model=model_option,
+            messages=[
+                {
+                    "role": m["role"],
+                    "content": m["content"]
+                }
+                for m in st.session_state.messages
+            ],
+            max_tokens=max_tokens,
+            stream=True
         )
 
-# Display prompt templates section
-if show_prompt_templates:
-    st.sidebar.header("Prompt Templates")
-    template_options = config["prompt_templates"].keys()
-    selected_template = st.sidebar.selectbox("Choose a prompt template", options=template_options)
+        # Use the generator function with st.write_stream
+        with st.chat_message("assistant", avatar="🤖"):
+            chat_responses_generator = generate_chat_responses(chat_completion)
+            full_response = st.write_stream(chat_responses_generator)
 
-    if st.sidebar.button("Load Template"):
-        prompt_template = config["prompt_templates"][selected_template]
-        st.chat_input("", value=prompt_template, key="prompt_input")
+        end_time = time.time()
+        response_time = end_time - start_time
+        st.info(f"Response generated in {response_time:.2f} seconds.")
+    except Exception as e:
+        st.error(f"Error: {e}", icon="🚨")
+
+    # Append the full response to session_state.messages
+    if isinstance(full_response, str):
+        st.session_state.messages.append(
+            {"role": "assistant", "content": full_response})
+    else:
+        # Handle the case where full_response is not a string
+        combined_response = "\n".join(str(item) for item in full_response)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": combined_response})
+
+# Add a clear chat button
+if st.sidebar.button("Clear Chat"):
+    st.session_state.messages = []
+
+# Add a download chat history button
+if st.sidebar.button("Download Chat History"):
+    chat_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in st.session_state.messages])
+    st.download_button(
+        label="Download Chat History",
+        data=chat_history,
+        file_name="chat_history.txt",
+        mime="text/plain",
+    )
+
+# Add a prompt templates section
+st.sidebar.header("Prompt Templates")
+template_options = config["prompt_templates"].keys()
+selected_template = st.sidebar.selectbox("Choose a prompt template", options=template_options)
+
+if st.sidebar.button("Load Template"):
+    prompt_template = config["prompt_templates"][selected_template]
+    st.chat_input("", value=prompt_template, key="prompt_input")
+
+# Add a feedback section
+st.sidebar.header("Feedback")
+if st.sidebar.button("Submit Feedback"):
+    feedback = st.text_area("Enter your feedback here")
+    if feedback:
+        feedback_data = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "feedback": feedback
+        }
+        feedback_df = pd.DataFrame([feedback_data])
+        feedback_df.to_csv("feedback.csv", mode="a", header=False, index=False)
+        st.success("Thank you for your feedback!")
+
+# Add a rate limiting feature
+if "request_count" not in st.session_state:
+    st.session_state.request_count = 0
+
+if st.session_state.request_count >= config["rate_limit"]:
+    st.warning(f"You have reached the maximum number of requests ({config['rate_limit']}) for the current session. Please wait or restart the app.")
+else:
+    st.session_state.request_count += 1
+
+def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
+    """Yield chat response content from the Groq API response."""
+    for chunk in chat_completion:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
