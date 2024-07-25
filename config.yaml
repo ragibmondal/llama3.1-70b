@@ -1,7 +1,7 @@
 # Model configurations
 models:
-  llama-3.1-405b-reasoning:
-    name: llama-3.1-405b-reasoning
+  llama-3.1-70b-versatile:
+    name: llama-3.1-70b-versatile
     provider: groq
     tokens: 131072
     developer: Meta
