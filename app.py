@@ -33,7 +33,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_option = "llama3-70b-8192"
+model_option = "llama-3.1-70b-versatile"
 model_info = config["models"][model_option]
 
 # Display model information
