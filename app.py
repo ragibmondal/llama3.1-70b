@@ -59,7 +59,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_option = "llama3.1:70b"
+model_option = "llama-3.1-70b-versatile"
 if model_option not in config["models"]:
     st.error(f"The model '{model_option}' is not defined in the config file.")
     st.stop()
