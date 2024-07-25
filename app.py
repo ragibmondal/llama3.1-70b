@@ -14,7 +14,7 @@ def generate_chat_responses(chat_completion) -> Generator[str, None, None]:
         if chunk.choices[0].delta.content:
             yield chunk.choices[0].delta.content
 
-st.set_page_config(page_icon="💬", layout="wide", page_title="Llama3 Chat App")
+st.set_page_config(page_icon="💬", layout="wide", page_title="Llama 3.1 Chat App")
 
 # Load configuration from config.yaml
 with open("config.yaml", "r") as f:
@@ -33,8 +33,13 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_option = "llama-3.1-70b-versatile"
-model_info = config["models"][model_option]
+model_option = "llama-3.1-8b-instant"
+model_info = {
+    "name": "Llama 3.1 8B (Preview)",
+    "developer": "Meta",
+    "description": "Llama 3.1 8B model with 131,072 token context window",
+    "tokens": 8192  # Max tokens for preview launch
+}
 
 # Display model information
 st.sidebar.header("Model Information")
@@ -120,3 +125,7 @@ selected_template = st.sidebar.selectbox("Choose a prompt template", options=tem
 if st.sidebar.button("Load Template"):
     prompt_template = config["prompt_templates"][selected_template]
     st.chat_input("", value=prompt_template, key="prompt_input")
+
+# Add a note about API availability
+st.sidebar.markdown("---")
+st.sidebar.info("Early API access to Llama 3.1 405B is currently only available to paying customers. During preview launch, all 3.1 models are limited to max_tokens of 8k and 405b to 16k input tokens.")
