@@ -1,12 +1,12 @@
 models:
-  llama3.1:70b:
+  llama-3.1-70b-versatile:
     name: llama-3.1-70b-versatile
     provider: groq
-    tokens: 131072
+    tokens: 8000
     developer: Meta
     description: Llama3-70b-chat is a large language model developed by Meta, known for its strong performance on various natural language processing tasks.
 
-default_max_tokens: 131072
+default_max_tokens: 8000
 
 prompt_templates:
   creative_writing: "Write a short story about a [theme] in the style of [author]."
