@@ -1,4 +1,3 @@
-# Model configurations
 models:
   llama-3.1-70b-versatile:
     name: llama-3.1-70b-versatile
@@ -7,12 +6,9 @@ models:
     developer: Meta
     description: Llama3-70b-chat is a large language model developed by Meta, known for its strong performance on various natural language processing tasks.
 
-# Default maximum tokens for response generation
 default_max_tokens: 131072
 
-# Prompt templates for different use cases
 prompt_templates:
   creative_writing: "Write a short story about a [theme] in the style of [author]."
   code_generation: "Write a Python function that [task]."
   data_analysis: "Analyze the following dataset and provide insights: [dataset]"
-  # Add more prompt templates as needed
