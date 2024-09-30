@@ -4,6 +4,9 @@ from typing import Generator
 from groq import Groq
 from dotenv import load_dotenv
 import yaml
+import base64
+from PIL import Image
+import io
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,15 +24,35 @@ def load_config():
             config = yaml.safe_load(f)
         
         if "models" not in config:
-            st.error("The 'models' section is missing from the config file.")
-            st.stop()
+            config["models"] = {}
+
+        # Add the new models to the configuration
+        new_models = [
+            "llama-3.1-70b-versatile",
+            "llama-3.1-8b-instant",
+            "llama-3.2-11b-text-preview",
+            "llama-3.2-11b-vision-preview",
+            "llama-3.2-1b-preview",
+            "llama-3.2-3b-preview",
+            "llama-3.2-90b-text-preview",
+            "llama-guard-3-8b",
+            "llama3-70b-8192",
+            "llama3-8b-8192"
+        ]
+
+        for model in new_models:
+            if model not in config["models"]:
+                config["models"][model] = {
+                    "name": model,
+                    "developer": "Meta/Groq",
+                    "description": f"Llama model: {model}",
+                    "tokens": 8192  # Default max tokens, adjust as needed
+                }
         
         if "default_max_tokens" not in config:
-            st.warning("'default_max_tokens' is not specified in the config. Using 1024 as default.")
             config["default_max_tokens"] = 1024
         
         if "prompt_templates" not in config:
-            st.warning("No prompt templates found in the config.")
             config["prompt_templates"] = {}
         
         return config
@@ -40,8 +63,13 @@ def load_config():
         st.error(f"Error reading config.yaml: {e}")
         st.stop()
 
+def encode_image_to_base64(image):
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
 # Set up the Streamlit page
-st.set_page_config(page_icon="💬", layout="wide", page_title="Llama 3.1 Chat App")
+st.set_page_config(page_icon="💬", layout="wide", page_title="Llama Chat App")
 
 # Load configuration
 config = load_config()
@@ -58,21 +86,19 @@ client = Groq(api_key=GROQ_API_KEY)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Define model details
-model_option = "llama-3.1-70b-versatile"
-if model_option not in config["models"]:
-    st.error(f"The model '{model_option}' is not defined in the config file.")
-    st.stop()
+# Model selection
+model_options = list(config["models"].keys())
+model_option = st.sidebar.selectbox("Select Model", options=model_options, index=0)
 
 model_info = config["models"][model_option]
 
 # Display model information
 st.sidebar.header("Model Information")
-st.sidebar.markdown(f"**Name:** {model_info.get('name', 'N/A')}")
-st.sidebar.markdown(f"**Developer:** {model_info.get('developer', 'N/A')}")
-st.sidebar.markdown(f"**Description:** {model_info.get('description', 'N/A')}")
+st.sidebar.markdown(f"**Name:** {model_info['name']}")
+st.sidebar.markdown(f"**Developer:** {model_info['developer']}")
+st.sidebar.markdown(f"**Description:** {model_info['description']}")
 
-max_tokens_range = model_info.get("tokens", 1024)  # Default to 1024 if not specified
+max_tokens_range = model_info.get("tokens", 8192)  # Default to 8192 if not specified
 
 # Adjust max_tokens slider
 max_tokens = st.sidebar.slider(
@@ -84,11 +110,26 @@ max_tokens = st.sidebar.slider(
     help=f"Adjust the maximum number of tokens (words) for the model's response. Max for selected model: {max_tokens_range}"
 )
 
+# Add image upload option
+uploaded_file = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
+    st.sidebar.image(image, caption="Uploaded Image", use_column_width=True)
+    encoded_image = encode_image_to_base64(image)
+    st.session_state.messages.append({
+        "role": "user",
+        "content": f"[Uploaded image: data:image/png;base64,{encoded_image}]"
+    })
+    st.experimental_rerun()
+
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     avatar = '🤖' if message["role"] == "assistant" else '👨‍💻'
     with st.chat_message(message["role"], avatar=avatar):
-        st.markdown(message["content"])
+        if message["content"].startswith("[Uploaded image:"):
+            st.image(message["content"].split(",")[1], caption="Uploaded Image")
+        else:
+            st.markdown(message["content"])
 
 if prompt := st.chat_input("Enter your prompt here..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
