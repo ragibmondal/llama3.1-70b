@@ -41,7 +41,7 @@ def load_config():
         st.stop()
 
 # Set up the Streamlit page
-st.set_page_config(page_icon="💬", layout="wide", page_title="Llama 3.1 Chat App")
+st.set_page_config(page_icon="💬", layout="wide", page_title="llama-3.3-70b-versatile")
 
 # Load configuration
 config = load_config()
@@ -59,7 +59,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Define model details
-model_option = "llama-3.1-70b-versatile"
+model_option = "llama-3.3-70b-versatile"
 if model_option not in config["models"]:
     st.error(f"The model '{model_option}' is not defined in the config file.")
     st.stop()
